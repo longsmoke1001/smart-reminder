@@ -5,3 +5,4 @@ apscheduler
 requests
 python-dotenv
 sqlalchemy
+discord.py
