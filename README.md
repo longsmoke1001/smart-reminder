@@ -28,7 +28,3 @@ Type `/remind tomorrow at 9am remind me to buy groceries` — the AI parses it, 
 | Scheduler | APScheduler |
 | Database | SQLite + SQLAlchemy |
 | Notifications | Discord Webhook |
-
----
-
-## Project Structure
