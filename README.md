@@ -31,7 +31,7 @@ Type `/remind tomorrow at 9am remind me to buy groceries` — the AI parses it, 
 | Notifications | Discord Webhook |
 
 ---
-
+```text
 ## Project Structure
 smart-reminder/
 ├── main.py               # FastAPI entry point
