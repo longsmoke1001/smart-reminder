@@ -1,5 +1,5 @@
 from apscheduler.schedulers.background import BackgroundScheduler
-from database import get_due_reminders, mark_as_sent
+from database import get_due_reminders, mark_as_sent, reschedule_reminder
 from notifier import send_discord_notification
 
 scheduler = BackgroundScheduler()
@@ -19,7 +19,10 @@ def check_reminders():
         success = send_discord_notification(reminder.message)
 
         if success:
-            mark_as_sent(reminder.id)
+            if reminder.repeat_seconds is not None:
+                reschedule_reminder(reminder.id)
+            else:
+                mark_as_sent(reminder.id)
             print(f"✅ 已發送並標記：{reminder.id}")
         else:
             print(f"❌ 發送失敗：{reminder.id}")
@@ -52,7 +55,7 @@ if __name__ == "__main__":
 
     # 測試：新增一個 10 秒後到期嘅提醒
     test_time = datetime.now() + timedelta(seconds=10)
-    reminder = add_reminder(test_time, "測試定時提醒")
+    reminder = add_reminder(test_time, "測試定時提醒", repeat_seconds=60)  # 每 60 秒重複一次
     print(f"新增提醒：{reminder}")
 
     # 啟動 scheduler

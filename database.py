@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker
+from datetime import datetime, timedelta
 
 Base = declarative_base()
 
@@ -12,9 +13,10 @@ class Reminder(Base):
     time = Column(DateTime, nullable=False)
     message = Column(String, nullable=False)
     sent = Column(Boolean, default=False)
+    repeat_seconds = Column(Integer, nullable=True)
 
     def __repr__(self):
-        return f"<Reminder(id={self.id}, time={self.time}, message='{self.message}', sent={self.sent})>"
+        return f"<Reminder(id={self.id}, time={self.time}, message='{self.message}', repeat_seconds={self.repeat_seconds}, sent={self.sent})>"
 
 
 # 建立 SQLite 數據庫
@@ -30,11 +32,11 @@ def get_session():
     return Session()
 
 
-def add_reminder(time, message):
+def add_reminder(time, message, repeat_seconds=None):
     """新增提醒"""
     session = get_session()
     try:
-        reminder = Reminder(time=time, message=message)
+        reminder = Reminder(time=time, message=message, repeat_seconds=repeat_seconds)
         session.add(reminder)
         session.commit()
         session.refresh(reminder)
@@ -92,13 +94,24 @@ def delete_reminder(reminder_id):
     finally:
         session.close()
 
-
+def reschedule_reminder(reminder_id):
+    """重新安排提醒時間"""
+    session = get_session()
+    try:
+        reminder = session.query(Reminder).get(reminder_id)
+        if reminder:
+            reminder.time += timedelta(seconds=reminder.repeat_seconds)
+            reminder.sent = False  # 重置已發送狀態
+            session.commit()
+            return reminder
+        return None
+    finally:
+        session.close()
+        
 if __name__ == "__main__":
-    from datetime import datetime, timedelta
-
     # 測試：新增提醒
     test_time = datetime.now() + timedelta(minutes=5)
-    reminder = add_reminder(test_time, "測試提醒")
+    reminder = add_reminder(test_time, "測試提醒", repeat_seconds=60)
     print(f"新增：{reminder}")
 
     # 測試：拎所有提醒

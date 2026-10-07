@@ -42,13 +42,14 @@ async def remind(interaction: discord.Interaction, text: str):
         reminder_time = datetime.strptime(parsed["time"], "%Y-%m-%d %H:%M")
 
         # 存入數據庫
-        reminder = add_reminder(reminder_time, parsed["message"])
+        reminder = add_reminder(reminder_time, parsed["message"], repeat_seconds=parsed["repeat_seconds"])
 
         # 回覆用戶
         await interaction.followup.send(
             f"✅ 已設定提醒！\n"
             f"⏰ 時間：{reminder.time}\n"
             f"📝 內容：{reminder.message}"
+            f"\n🔁 重複：{parsed['repeat_seconds']} 秒" if parsed["repeat_seconds"] else "\n🔁 重複：無"
         )
     except Exception as e:
         await interaction.followup.send(f"❌ 解析失敗：{e}")
@@ -68,7 +69,8 @@ async def list_reminders(interaction: discord.Interaction):
     message = "📋 **所有提醒：**\n"
     for r in reminders:
         status = "✅" if r.sent else "⏳"
-        message += f"{status} `{r.id}` {r.time} - {r.message}\n"
+        repeat_info = f" (每 {r.repeat_seconds} 秒)" if r.repeat_seconds else ""
+        message += f"{status} `{r.id}` {r.time} - {r.message} {repeat_info}\n"
 
     await interaction.response.send_message(message)
 

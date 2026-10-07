@@ -2,12 +2,12 @@ import os
 import json
 from datetime import datetime
 from dotenv import load_dotenv
+import requests
 
 load_dotenv()
 
 # 讀取供應商設定（預設 nvidia）
 PROVIDER = os.getenv("AI_PROVIDER", "nvidia")
-
 
 def call_ai(prompt: str) -> str:
     """統一介面，內部切換供應商"""
@@ -19,9 +19,37 @@ def call_ai(prompt: str) -> str:
         return call_groq(prompt)
     elif PROVIDER == "claude":
         return call_claude(prompt)
+    elif PROVIDER == "openrouter":
+        return call_openrouter(prompt)
     else:
         raise ValueError(f"Unknown provider: {PROVIDER}")
 
+def call_openrouter(prompt: str) -> str:
+    """用 OpenRouter API（免費模型）"""
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    model = os.getenv("OPENROUTER_MODEL", "qwen/qwen3.8-27b:free")
+
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://github.com/longsmoke1001/smart-reminder",
+            "X-Title": "Smart Reminder",
+        },
+        json={
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2,
+        },
+        timeout=60,
+    )
+
+    if response.status_code != 200:
+        raise Exception(f"OpenRouter 錯誤 {response.status_code}：{response.text}")
+
+    data = response.json()
+    return data["choices"][0]["message"]["content"]
 
 def call_nvidia(prompt: str) -> str:
     """用 NVIDIA NIM API（兼容 OpenAI 格式）"""
@@ -82,13 +110,27 @@ def call_claude(prompt: str) -> str:
 def parse_reminder(user_input: str, retries: int = 3) -> dict:
     """用 AI 將自然語言轉做結構化資料（有 retry）"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    prompt = f"""
+    你是一個鬧鐘解析器。現在時間是 {now}。
+    請將以下句子轉做 JSON：
+    "{user_input}"
 
-    prompt = f"""現在時間：{now}
-將以下句子轉做 JSON，只回傳 JSON：
-"{user_input}"
+    格式：
+    {{
+    "time": "YYYY-MM-DD HH:MM",
+    "message": "提醒內容",
+    "repeat_seconds": <number or null>
+    }}
 
-格式：{{"time": "YYYY-MM-DD HH:MM", "message": "內容"}}
-"""
+    規則：
+    - 「每日」= 86400 秒
+    - 「每週」= 604800 秒
+    - 「每 X 分鐘」= X * 60 秒
+    - 「每 X 小時」= X * 3600 秒
+    - 一次性 = null
+
+    只回傳 JSON。
+    """
 
     for attempt in range(retries):
         try:
